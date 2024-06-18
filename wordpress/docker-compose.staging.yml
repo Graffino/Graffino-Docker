@@ -1,0 +1,125 @@
+services:
+  php-fpm:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
+    image: wkdelsw/annotext_oa_fe:php-fpm-staging
+    build:
+      context: .
+      dockerfile: .docker/php/Dockerfile
+      args:
+        PHP_EXTENSIONS: ${PHP_EXTENSIONS}
+        USER_ID: ${USER_ID}
+    volumes:
+      - ./:/var/www:rw
+      - node_modules:/var/www/node_modules:rw
+      - composer:/var/www/composer:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'SCRIPT_NAME=/healthcheck.php',
+          'SCRIPT_FILENAME=/tmp/healthcheck.php',
+          'REQUEST_METHOD=GET',
+          'cgi-fcgi',
+          '-bind',
+          '-connect 127.0.0.1:9000',
+          '|| exit 1'
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  nginx:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-nginx
+    image: wkdelsw/annotext_oa_fe:nginx-staging
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+    volumes:
+      - ./:/var/www:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --fail http://127.0.0.1:80 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      php-fpm:
+        condition: service_healthy
+      clamav:
+        condition: service_started
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${TRAEFIK_HOSTNAME}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.tls=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.tls.domains[0].main=${TRAEFIK_HOSTNAME}
+      - traefik.http.services.${COMPOSE_PROJECT_NAME}-secure.loadbalancer.server.port=80
+
+  mariadb:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-mariadb
+    image: wkdelsw/annotext_oa_fe:mariadb-staging
+    build:
+      context: .
+      dockerfile: .docker/mariadb/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        DB_DATABASE: ${DB_DATABASE}
+        DB_USERNAME: ${DB_USERNAME}
+        DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mariadb:/var/lib/mysql:rw
+    networks:
+      - servers
+    ports:
+      - '${DB_FORWARD_PORT:-3306}:3306'
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-p${DB_PASSWORD}']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  clamav:
+    container_name: ${COMPOSE_PROJECT_NAME}-clamav
+    image: wkdelsw/annotext_oa_fe:clamav-staging
+    build:
+      context: .
+      dockerfile: .docker/clamav/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+    volumes:
+      - clamav:/var/lib/clamav:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test: ['CMD', 'clamdscan', '--ping', '3']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 1m
+
+networks:
+  servers:
+    driver: bridge
+  proxy:
+    external: true
+
+volumes:
+  mariadb:
+  node_modules:
+  composer:
+  clamav:

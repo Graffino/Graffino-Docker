@@ -1,0 +1,142 @@
+services:
+  php-fpm:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
+    image: wkdelsw/annotext_oa_fe:php-fpm-production
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+    build:
+      context: .
+      dockerfile: .docker/php/Dockerfile.production
+      args:
+        PHP_EXTENSIONS: ${PHP_EXTENSIONS}
+        USER_ID: ${USER_ID}
+    volumes:
+      - app:/var/www:rw
+      - ./.env:/var/www/.env:ro
+      - ./wordpress/uploads:/var/www/wordpress/uploads:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'SCRIPT_NAME=/healthcheck.php',
+          'SCRIPT_FILENAME=/tmp/healthcheck.php',
+          'REQUEST_METHOD=GET',
+          'cgi-fcgi',
+          '-bind',
+          '-connect 127.0.0.1:9000',
+          '|| exit 1'
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  nginx:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-nginx
+    image: wkdelsw/annotext_oa_fe:nginx-production
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+    volumes:
+      - app:/var/www:rw
+      - ./wordpress/uploads:/var/www/wordpress/uploads:rw
+    ports:
+      - 8080:80
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --fail http://127.0.0.1:80 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      php-fpm:
+        condition: service_healthy
+      clamav:
+        condition: service_started
+
+  mariadb:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-mariadb
+    image: wkdelsw/annotext_oa_fe:mariadb-production
+    build:
+      context: .
+      dockerfile: .docker/mariadb/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        DB_DATABASE: ${DB_DATABASE}
+        DB_USERNAME: ${DB_USERNAME}
+        DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mariadb:/var/lib/mysql:rw
+    networks:
+      - servers
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-p${DB_PASSWORD}']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mariadb-backup:
+    image: fradelg/mysql-cron-backup
+    container_name: ${COMPOSE_PROJECT_NAME}-backup
+    restart: unless-stopped
+    volumes:
+      - ./wordpress/backups/:/backup
+    environment:
+      MYSQL_HOST: ${COMPOSE_PROJECT_NAME}-database
+      MYSQL_USER: root
+      MYSQL_PASS: ${DB_USERNAME}
+      MAX_BACKUPS: 1
+      INIT_BACKUP: 1
+      CRON_TIME: 0 23 * * *
+      USE_PLAIN_SQL: 1
+      MYSQLDUMP_OPTS: --no-tablespaces
+    networks:
+      servers:
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  clamav:
+    container_name: ${COMPOSE_PROJECT_NAME}-clamav
+    image: wkdelsw/annotext_oa_fe:clamav-production
+    build:
+      context: .
+      dockerfile: .docker/clamav/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+    volumes:
+      - clamav:/var/lib/clamav:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test: ['CMD', 'clamdscan', '--ping', '3']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 1m
+
+networks:
+  servers:
+    driver: bridge
+  proxy:
+    external: true
+
+volumes:
+  mariadb:
+  app:
+  clamav:
