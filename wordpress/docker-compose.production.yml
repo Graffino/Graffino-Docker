@@ -2,7 +2,7 @@ services:
   php-fpm:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
-    image: wkdelsw/annotext_oa_fe:php-fpm-production
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-php-fpm:${DCR_TAG}
     environment:
       - ENVIRONMENT=${ENVIRONMENT}
     build:
@@ -40,7 +40,7 @@ services:
   nginx:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-nginx
-    image: wkdelsw/annotext_oa_fe:nginx-production
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
     build:
       context: .
       dockerfile: .docker/nginx/Dockerfile
@@ -70,7 +70,7 @@ services:
   mariadb:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-mariadb
-    image: wkdelsw/annotext_oa_fe:mariadb-production
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-mariadb:${DCR_TAG}
     build:
       context: .
       dockerfile: .docker/mariadb/Dockerfile
@@ -112,7 +112,7 @@ services:
 
   clamav:
     container_name: ${COMPOSE_PROJECT_NAME}-clamav
-    image: wkdelsw/annotext_oa_fe:clamav-production
+    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-clamav:${DCR_TAG}
     build:
       context: .
       dockerfile: .docker/clamav/Dockerfile
