@@ -1,0 +1,120 @@
+name: PR Management
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  add-comment:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post deployment and deletion instructions
+        id: Post-Comment
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          result-encoding: string
+          script: |
+            const branchName = context.payload.pull_request.head.ref;
+            const prNumber = context.payload.pull_request.number;
+
+            // Fetch all comments on the PR
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            // Identify and delete comments containing "## Feature Environment Management"
+
+            let commentBody = `
+              ## Feature Environment Management
+
+              To deploy or delete the environment for this branch, use one of the following commands as a comment on this PR:
+
+              - 🚀 **To deploy**: \`/deploy\`
+              - 🗑️ **To delete**: \`/delete\`
+
+              The status of the deployment and the **Deployment URL** will be updated in this comment after the action is completed.
+
+              > Important: Please use these actions responsibly and clean up environments when they're no longer needed.
+            `;
+
+            for (const comment of comments.data) {
+              // Check if we already deployed this branch
+              if (comment.body.includes('Deployment URL')) {
+                commentBody = comment.body;
+              }
+              if (comment.body.includes('## Feature Environment Management')) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id
+                });
+              }
+            }
+
+            const comment = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });
+            return comment.data.id;
+
+  process-command:
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request && (contains(github.event.comment.body, '/deploy') || contains(github.event.comment.body, '/delete'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR details
+        id: pr_details
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            return {
+              branch: pr.data.head.ref,
+              pull_number: context.issue.number,
+              action: context.payload.comment.body.includes('/deploy') ? 'deploy' : 'delete'
+            };
+
+      - name: Trigger Feature workflow
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            try {
+              const result = await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'feature.yml',
+                ref: '${{ fromJson(steps.pr_details.outputs.result).branch }}',
+                inputs: {
+                  branch_name: '${{ fromJson(steps.pr_details.outputs.result).branch }}',
+                  action: '${{ fromJson(steps.pr_details.outputs.result).action }}',
+                  pr_number: '${{ fromJson(steps.pr_details.outputs.result).pull_number }}'
+                }
+              });
+            } catch (error) {
+              console.error('🛑 Error triggering feature.yml workflow:', error);
+              core.setFailed('🛑 Failed to trigger feature.yml workflow');
+            }
+
+      - name: Delete command comment
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id
+            });

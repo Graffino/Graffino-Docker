@@ -1,0 +1,344 @@
+name: Feature
+run-name: "${{ github.repository }} -> feature by ${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: "Branch name to deploy"
+        required: true
+        default: ""
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - delete
+      pr_number:
+        description: "Pull Request number"
+        required: false
+        default: ""
+  delete:
+
+jobs:
+  clean-feature:
+    if: github.event_name == 'delete' || (github.event_name == 'workflow_dispatch' && inputs.action == 'delete')
+
+    runs-on: [self-hosted, graffino, php8.2]
+
+    environment: Staging
+    env:
+      DCR: ghcr.io
+      DCR_ORG: graffino
+      DCR_REPO: your_project_name
+      DCR_TAG: ""
+      COMPOSE_PROJECT_NAME: ""
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node: [22]
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Workflow Start - Teams Notification
+        uses: Graffino/Graffino-Teams-Notification@v2
+        if: always()
+        with:
+          github-token: "${{ github.token }}"
+          ms-teams-webhook-uri: "${{ secrets.TEAMS_WEBHOOK_UPDATES }}"
+          notification-summary: "${{ github.repository }} -> cleanup by ${{ github.actor }} started..."
+          timezone: Europe/Bucharest
+
+      - name: Create Sanitized tag and project name from the branch name
+        run: |
+          SANITIZED_BRANCH=$(echo "${{ github.ref_name || inputs.branch_name }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]' )
+          SANITIZED_COMPOSE_NAME=$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}_${SANITIZED_BRANCH%-}" | tr -c '[:alnum:]' '_' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_HOSTNAME=${SANITIZED_BRANCH%-}-$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]')
+          echo "DCR_TAG=${SANITIZED_BRANCH%-}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=${SANITIZED_COMPOSE_NAME%_}" >> $GITHUB_ENV
+          echo "TRAEFIK_HOSTNAME=${SANITIZED_HOSTNAME%-}.graffino.live" >> $GITHUB_ENV
+
+      - name: Cleanup graffino.live
+        uses: GPTED/SSH-My-Action@0.1
+        id: Cleanup-Graffino-Live
+        with:
+          HOST: ${{ secrets.DEPLOY_HOSTNAME }}
+          PORT: 22
+          USER: ${{ secrets.DEPLOY_USERNAME }}
+          PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          CMD: |
+            echo "SSH script start at: " $(date -u)
+            cd ~/docker/${{ env.COMPOSE_PROJECT_NAME }}/ || exit
+            make clean
+            cd ..
+            rm -rf ~/docker/${{ env.COMPOSE_PROJECT_NAME }}
+            echo "SSH script stop at: " $(date -u)
+
+      - name: Workflow Ended - Teams Notification Message
+        uses: Graffino/Graffino-Teams-Notification@v2
+        with:
+          github-token: "${{ github.token }}"
+          ms-teams-webhook-uri: "${{ secrets.TEAMS_WEBHOOK_UPDATES }}"
+          job: "${{ toJson(job) }}"
+          timezone: Europe/Bucharest
+          notification-summary: "${{ github.repository }} -> cleanup by ${{ github.actor }} finished: ${{ job.status }}"
+        if: always()
+
+  deploy-feature:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'deploy'
+
+    runs-on: [self-hosted, graffino, php8.2]
+
+    environment: Staging
+    env:
+      DCR: ghcr.io
+      DCR_ORG: graffino
+      DCR_REPO: your_project_name
+      DCR_TAG: ""
+      COMPOSE_PROJECT_NAME: ""
+      TRAEFIK_HOSTNAME: ""
+      ENVIRONMENT: staging
+      PHP_EXTENSIONS: ""
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node: [22]
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Workflow Start - Teams Notification
+        uses: Graffino/Graffino-Teams-Notification@v2
+        with:
+          github-token: "${{ github.token }}"
+          ms-teams-webhook-uri: "${{ secrets.TEAMS_WEBHOOK_UPDATES }}"
+          notification-summary: "${{ github.repository }} -> feature by ${{ github.actor }} started..."
+          timezone: Europe/Bucharest
+        if: always()
+
+      - name: Create Sanitized tag and project name from the branch name
+        run: |
+          SANITIZED_BRANCH=$(echo "${{ github.ref_name || inputs.branch_name }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]' )
+          SANITIZED_COMPOSE_NAME=$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}_${SANITIZED_BRANCH%-}" | tr -c '[:alnum:]' '_' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_HOSTNAME=${SANITIZED_BRANCH%-}-$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]')
+          echo "DCR_TAG=${SANITIZED_BRANCH%-}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=${SANITIZED_COMPOSE_NAME%_}" >> $GITHUB_ENV
+          echo "TRAEFIK_HOSTNAME=${SANITIZED_HOSTNAME%-}.graffino.live" >> $GITHUB_ENV
+
+      - name: Checkout
+        id: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name || inputs.branch_name }}
+          fetch-depth: 0
+        if: success()
+
+      - name: Replace environment variables
+        uses: nightstory/replace-env@v2
+        id: Create-Env
+        env:
+          COMPOSE_PROJECT_NAME: "${{ secrets.COMPOSE_PROJECT_NAME }}"
+          DCR: "${{ env.DCR }}"
+          DCR_ORG: "${{ env.DCR_ORG }}"
+          DCR_REPO: "${{ env.DCR_REPO }}"
+          DCR_TAG: "${{ env.DCR_TAG }}"
+          DB_HOST: "${{ secrets.DB_HOST }}"
+          DB_DATABASE: "${{ secrets.DB_DATABASE }}"
+          DB_USERNAME: "${{ secrets.DB_USERNAME }}"
+          DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
+          TRAEFIK_HOSTNAME: "${{ secrets.TRAEFIK_HOSTNAME }}"
+          TRAEFIK_RESOLVER: "${{ secrets.TRAEFIK_RESOLVER }}"
+          GH_PACKAGES_TOKEN: "${{ secrets.GH_PACKAGES_TOKEN }}"
+          GH_PACKAGES_USERNAME: "${{ secrets.GH_PACKAGES_USERNAME }}"
+          APP_KEY: "${{ secrets.APP_KEY }}"
+        with:
+          input_file: .env.${{ env.ENVIRONMENT }}
+          output_file: .env
+          pattern: double_underscore
+
+      - name: Copy .env file
+        run: |
+          rm -f .env.${{ env.ENVIRONMENT }}
+          cp -f .env .env.${{ env.ENVIRONMENT }}
+
+      - name: Load .env variables
+        id: Load-Env
+        uses: ahmadnassri/action-dotenv@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        id: Login-To-Container-Registry
+        uses: docker/login-action@v3
+        with:
+          registry: "${{ env.DCR }}"
+          username: "${{ github.actor }}"
+          password: "${{ github.token }}"
+
+      - name: Build and push PHP-FPM image
+        uses: docker/build-push-action@v6
+        id: Build-And-Push-PHP-FPM
+        if: success()
+        with:
+          context: .
+          build-args: |
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            PHP_EXTENSIONS=${{ env.PHP_EXTENSIONS }}
+            TRAEFIK_HOSTNAME=${{ env.TRAEFIK_HOSTNAME }}
+            GH_PACKAGES_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
+            GH_PACKAGES_USERNAME=${{ secrets.GH_PACKAGES_USERNAME }}
+          file: .docker/php/Dockerfile.production
+          push: true
+          tags: >
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
+          cache-from: >-
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push Redis image
+        uses: docker/build-push-action@v6
+        id: Build-And-Push-Redis
+        if: success()
+        with:
+          context: .
+          build-args: |
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+          file: .docker/redis/Dockerfile
+          push: true
+          tags: >
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-redis:${{ env.DCR_TAG }}
+          cache-from: >-
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-redis:${{ env.DCR_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v6
+        id: Build-And-Push-Nginx
+        if: success()
+        with:
+          context: .
+          build-args: |
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+          file: .docker/nginx/Dockerfile
+          push: true
+          tags: >
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
+          cache-from: >-
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push MariaDB image
+        uses: docker/build-push-action@v6
+        if: success()
+        id: Build-And-Push-MariaDB
+        with:
+          context: .
+          build-args: |
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            DB_DATABASE=${{ secrets.DB_DATABASE }}
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          file: .docker/mariadb/Dockerfile
+          push: true
+          tags: >
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
+          cache-from: >-
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
+          cache-to: type=inline
+
+      - name: Clean up old packages
+        uses: WPMedia/delete-github-package-versions@v0.4.10
+        id: Cleanup-Old-Packages
+        if: success()
+        with:
+          keep: 1
+          names: |
+            ${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
+            ${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
+            ${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
+
+      - name: Deploy
+        id: Deploy-To-Staging
+        uses: up9cloud/action-rsync@v1
+        if: success()
+        env:
+          HOST: ${{ secrets.DEPLOY_HOSTNAME }}
+          USER: ${{ secrets.DEPLOY_USERNAME }}
+          KEY: "${{ secrets.DEPLOY_SSH_KEY }}"
+          SSH_ARGS: " -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+
+          SOURCE: ./
+          TARGET: ~/docker/${{ env.COMPOSE_PROJECT_NAME }}/
+
+          VERBOSE: true
+          ARGS: "-carEzhvP --delete-before --exclude-from='.rsync-excludes-${{ env.ENVIRONMENT }}'"
+
+          PRE_SCRIPT: |
+            echo "Pre script start at: " $(date -u)
+            mkdir -p ~/docker/${{ env.COMPOSE_PROJECT_NAME }}
+            echo "Pre script stop at: " $(date -u)
+
+          POST_SCRIPT: |
+            echo "Post script start at: " $(date -u)
+            make env
+            cd ~/docker/${{ env.COMPOSE_PROJECT_NAME }}/
+            ./.docker/setup-env.sh
+            make update
+            echo "Post stopped start at: " $(date -u)
+
+      - name: Update PR Comment
+        id: Update-Comment
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          result-encoding: string
+          script: |
+            const branchName = '${{ github.ref_name || inputs.branch_name }}';
+            const prNumber = ${{ inputs.pr_number }};
+
+            const commentBody = `
+              ## Feature Environment Management
+
+              - 🌐 **Deployment URL**: [${{ env.TRAEFIK_HOSTNAME }}](https://${{ env.TRAEFIK_HOSTNAME }})
+
+              - **Deployment Summary**: ${{ job.status }}
+
+              To re-deploy or delete the environment for this branch, use one of the following commands as a comment on this PR:
+
+              - 🚀 **To re-deploy**: \`/deploy\`
+              - 🗑️ **To delete**: \`/delete\`
+
+              > Note: Please use these actions responsibly and clean up environments when they're no longer needed.
+            `;
+
+            const comment = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });
+            return comment.data.id;
+
+      - name: Workflow Ended - Teams Notification Message
+        uses: Graffino/Graffino-Teams-Notification@v2
+        if: always()
+        with:
+          github-token: "${{ github.token }}"
+          ms-teams-webhook-uri: "${{ secrets.TEAMS_WEBHOOK_UPDATES }}"
+          job: "${{ toJson(job) }}"
+          timezone: Europe/Bucharest
+          notification-summary: "${{ github.repository }} -> feature by ${{ github.actor }} finished. Deployment URL: ${{ env.TRAEFIK_HOSTNAME }}. Summary: ${{ job.status }}"

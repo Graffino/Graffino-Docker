@@ -1,0 +1,17 @@
+# Git
+.git
+.gitattributes
+.gitignore
+.github
+node_modules
+
+# IDEs
+.idea
+.vscode
+!.vscode/extensions.json
+
+# Readme
+README.md
+
+# MacOS Junk
+.DS_Store

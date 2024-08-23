@@ -1,0 +1,67 @@
+# Exclude the following files and directories
+
+# Git and version control
+.git
+.github
+.gitattributes
+.gitignore
+
+# Rsync-related files
+.rsync-excludes-development
+.rsync-excludes-production
+.rsync-excludes-staging
+
+# IDE and editor configurations
+.vscode
+.editorconfig
+
+# Docker-related files (retain these)
+docker-compose.development.yml
+docker-compose.production.yml
+.hadolint.yaml
+.dockerignore
+
+# Node.js and JavaScript dependencies
+node_modules
+components.json
+postcss.config.js
+tailwind.config.js
+tsconfig.json
+tsconfig.node.json
+vite-env.d.ts
+vite.config.js
+package.json
+yarn.lock
+vite.config.ts
+jsconfig.json
+
+# Environment files
+.env.development
+.env.production
+
+# Other project-specific files
+auth-example.json
+LICENSE*
+README*
+artisan
+
+# Configuration and project-specific settings
+.browserlistrc
+.eslintignore
+.eslintrc
+.eslintrc.cjs
+.htmlhintrc
+.prettierrc
+.shellcheckrc
+.stylelintignore
+.stylelintrc
+
+# Log and XML files
+*.xml
+*.log
+
+# Specific project directories
+/src
+index.html
+/public
+
