@@ -69,7 +69,7 @@ case "${ENVIRONMENT:-}" in
 production)
   echo -e "    ${GREEN}✅  Update application volume data...${NC}"
   rsync -aEzhP --delete-before --include '.docker' --include 'dist-wp' --include 'composer' --include 'wordpress/migrations/' --exclude '.env*' --exclude 'wordpress/uploads' /home/docker/ /var/www/
-  cp -Rf /home/docker/dist-wp/wp-content/themes/Project-Name/images/logo*.svg /var/www/wordpress/uploads/
+  cp -Rf /home/docker/dist-wp/wp-content/themes/annotext/images/logo*.svg /var/www/wordpress/uploads/
   rm -rf /var/www/node_modules
   rm -rf /var/www/html
   find /var/www -not -path "/var/www/.git*" \
@@ -81,7 +81,7 @@ production)
 staging)
   echo -e "    ${GREEN}✅  Update application volume data...${NC}"
   rsync -aEzhP --delete-before --include '.docker' --include 'dist-wp' --include 'composer' --include 'wordpress/migrations/' --exclude '.env*' --exclude 'wordpress/uploads' /home/docker/ /var/www/
-  cp -Rf /home/docker/dist-wp/wp-content/themes/Project-Name/images/logo*.svg /var/www/wordpress/uploads/
+  cp -Rf /home/docker/dist-wp/wp-content/themes/annotext/images/logo*.svg /var/www/wordpress/uploads/
   rm -rf /var/www/node_modules
   rm -rf /var/www/html
   find /var/www -not -path "/var/www/.git*" \

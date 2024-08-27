@@ -1,5 +1,5 @@
 name: Feature
-run-name: "${{ github.repository }} -> feature by ${{ github.actor }}"
+run-name: ${{ github.event_name == 'delete' || (github.event_name == 'workflow_dispatch' && inputs.action == 'delete') && 'Cleanup feature environment' || format('{0} -> feature by {1}', github.repository, github.actor) }}
 
 on:
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: your_project_name
+      DCR_REPO: migronet_api
       DCR_TAG: ""
       COMPOSE_PROJECT_NAME: ""
 
@@ -45,6 +45,10 @@ jobs:
       packages: write
       attestations: write
       id-token: write
+      issues: write
+      pull-requests: write
+      deployments: write
+
     steps:
       - name: Workflow Start - Teams Notification
         uses: Graffino/Graffino-Teams-Notification@v2
@@ -58,27 +62,60 @@ jobs:
       - name: Create Sanitized tag and project name from the branch name
         run: |
           SANITIZED_BRANCH=$(echo "${{ github.ref_name || inputs.branch_name }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]' )
-          SANITIZED_COMPOSE_NAME=$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}_${SANITIZED_BRANCH%-}" | tr -c '[:alnum:]' '_' | tr '[:upper:]' '[:lower:]')
-          SANITIZED_HOSTNAME=${SANITIZED_BRANCH%-}-$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_COMPOSE_NAME=$(echo "${{ vars.COMPOSE_PROJECT_NAME }}_${SANITIZED_BRANCH%-}" | tr -c '[:alnum:]' '_' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_HOSTNAME=${SANITIZED_BRANCH%-}-$(echo "${{ vars.COMPOSE_PROJECT_NAME }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]')
           echo "DCR_TAG=${SANITIZED_BRANCH%-}" >> $GITHUB_ENV
           echo "COMPOSE_PROJECT_NAME=${SANITIZED_COMPOSE_NAME%_}" >> $GITHUB_ENV
           echo "TRAEFIK_HOSTNAME=${SANITIZED_HOSTNAME%-}.graffino.live" >> $GITHUB_ENV
 
-      - name: Cleanup graffino.live
-        uses: GPTED/SSH-My-Action@0.1
-        id: Cleanup-Graffino-Live
+      - name: Execute SSH Command
+        uses: appleboy/ssh-action@master
         with:
-          HOST: ${{ secrets.DEPLOY_HOSTNAME }}
-          PORT: 22
-          USER: ${{ secrets.DEPLOY_USERNAME }}
-          PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          CMD: |
+          host: ${{ secrets.DEPLOY_HOSTNAME }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
             echo "SSH script start at: " $(date -u)
-            cd ~/docker/${{ env.COMPOSE_PROJECT_NAME }}/ || exit
+            cd ~/docker/${{ env.COMPOSE_PROJECT_NAME }}/
             make clean
             cd ..
             rm -rf ~/docker/${{ env.COMPOSE_PROJECT_NAME }}
             echo "SSH script stop at: " $(date -u)
+
+      - name: Delete all deployments
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const { repo, owner } = context.repo;
+            let depPage = 1;
+            while (true) {
+              const deployments = await github.rest.repos.listDeployments({
+                owner, repo, per_page: 100, page: depPage++
+              });
+              if (deployments.data.length === 0) break;
+              for (const deployment of deployments.data) {
+                try {
+                  await github.rest.repos.createDeploymentStatus({
+                    owner,
+                    repo,
+                    deployment_id: deployment.id,
+                    state: 'inactive',
+                    description: 'Deployment inactivated for cleanup'
+                  });
+
+                  await github.rest.repos.deleteDeployment({
+                    owner,
+                    repo,
+                    deployment_id: deployment.id
+                  });
+                  console.log(`Deleted deployment ${deployment.id}`);
+                } catch (error) {
+                  console.error(`Error processing deployment ${deployment.id}: ${error.message}`);
+                }
+              }
+            }
 
       - name: Workflow Ended - Teams Notification Message
         uses: Graffino/Graffino-Teams-Notification@v2
@@ -99,7 +136,7 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: your_project_name
+      DCR_REPO: migronet_api
       DCR_TAG: ""
       COMPOSE_PROJECT_NAME: ""
       TRAEFIK_HOSTNAME: ""
@@ -118,6 +155,8 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
+      deployments: write
+      actions: write
 
     steps:
       - name: Workflow Start - Teams Notification
@@ -132,8 +171,8 @@ jobs:
       - name: Create Sanitized tag and project name from the branch name
         run: |
           SANITIZED_BRANCH=$(echo "${{ github.ref_name || inputs.branch_name }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]' )
-          SANITIZED_COMPOSE_NAME=$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}_${SANITIZED_BRANCH%-}" | tr -c '[:alnum:]' '_' | tr '[:upper:]' '[:lower:]')
-          SANITIZED_HOSTNAME=${SANITIZED_BRANCH%-}-$(echo "${{ secrets.COMPOSE_PROJECT_NAME }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_COMPOSE_NAME=$(echo "${{ vars.COMPOSE_PROJECT_NAME }}_${SANITIZED_BRANCH%-}" | tr -c '[:alnum:]' '_' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_HOSTNAME=${SANITIZED_BRANCH%-}-$(echo "${{ vars.COMPOSE_PROJECT_NAME }}" | tr -c '[:alnum:]' '-' | tr '[:upper:]' '[:lower:]')
           echo "DCR_TAG=${SANITIZED_BRANCH%-}" >> $GITHUB_ENV
           echo "COMPOSE_PROJECT_NAME=${SANITIZED_COMPOSE_NAME%_}" >> $GITHUB_ENV
           echo "TRAEFIK_HOSTNAME=${SANITIZED_HOSTNAME%-}.graffino.live" >> $GITHUB_ENV
@@ -150,7 +189,7 @@ jobs:
         uses: nightstory/replace-env@v2
         id: Create-Env
         env:
-          COMPOSE_PROJECT_NAME: "${{ secrets.COMPOSE_PROJECT_NAME }}"
+          COMPOSE_PROJECT_NAME: "${{ env.COMPOSE_PROJECT_NAME }}"
           DCR: "${{ env.DCR }}"
           DCR_ORG: "${{ env.DCR_ORG }}"
           DCR_REPO: "${{ env.DCR_REPO }}"
@@ -159,8 +198,8 @@ jobs:
           DB_DATABASE: "${{ secrets.DB_DATABASE }}"
           DB_USERNAME: "${{ secrets.DB_USERNAME }}"
           DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
-          TRAEFIK_HOSTNAME: "${{ secrets.TRAEFIK_HOSTNAME }}"
-          TRAEFIK_RESOLVER: "${{ secrets.TRAEFIK_RESOLVER }}"
+          TRAEFIK_HOSTNAME: "${{ env.TRAEFIK_HOSTNAME }}"
+          TRAEFIK_RESOLVER: "${{ vars.TRAEFIK_RESOLVER }}"
           GH_PACKAGES_TOKEN: "${{ secrets.GH_PACKAGES_TOKEN }}"
           GH_PACKAGES_USERNAME: "${{ secrets.GH_PACKAGES_USERNAME }}"
           APP_KEY: "${{ secrets.APP_KEY }}"
@@ -203,7 +242,7 @@ jobs:
             GH_PACKAGES_USERNAME=${{ secrets.GH_PACKAGES_USERNAME }}
           file: .docker/php/Dockerfile.production
           push: true
-          tags: >
+          tags: |
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
           cache-from: >-
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
@@ -219,7 +258,7 @@ jobs:
             ENVIRONMENT=${{ env.ENVIRONMENT }}
           file: .docker/redis/Dockerfile
           push: true
-          tags: >
+          tags: |
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-redis:${{ env.DCR_TAG }}
           cache-from: >-
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-redis:${{ env.DCR_TAG }}
@@ -235,7 +274,7 @@ jobs:
             ENVIRONMENT=${{ env.ENVIRONMENT }}
           file: .docker/nginx/Dockerfile
           push: true
-          tags: >
+          tags: |
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
           cache-from: >-
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
@@ -254,7 +293,7 @@ jobs:
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           file: .docker/mariadb/Dockerfile
           push: true
-          tags: >
+          tags: |
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
           cache-from: >-
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
@@ -300,38 +339,85 @@ jobs:
             make update
             echo "Post stopped start at: " $(date -u)
 
-      - name: Update PR Comment
-        id: Update-Comment
-        uses: actions/github-script@v6
+      - name: Create Deployment Status
+        uses: actions/github-script@v7
+        if: success()
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
-          result-encoding: string
           script: |
-            const branchName = '${{ github.ref_name || inputs.branch_name }}';
-            const prNumber = ${{ inputs.pr_number }};
+            const { repo, owner } = context.repo;
 
-            const commentBody = `
-              ## Feature Environment Management
-
-              - 🌐 **Deployment URL**: [${{ env.TRAEFIK_HOSTNAME }}](https://${{ env.TRAEFIK_HOSTNAME }})
-
-              - **Deployment Summary**: ${{ job.status }}
-
-              To re-deploy or delete the environment for this branch, use one of the following commands as a comment on this PR:
-
-              - 🚀 **To re-deploy**: \`/deploy\`
-              - 🗑️ **To delete**: \`/delete\`
-
-              > Note: Please use these actions responsibly and clean up environments when they're no longer needed.
-            `;
-
-            const comment = await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: commentBody
+            // Create a deployment
+            const deployment = await github.rest.repos.createDeployment({
+              owner,
+              repo,
+              ref: context.ref,
+              environment: '${{ env.COMPOSE_PROJECT_NAME }}',
+              auto_merge: false,
+              required_contexts: []
             });
-            return comment.data.id;
+
+            // Set the deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner,
+              repo,
+              deployment_id: deployment.data.id,
+              state: 'success',
+              environment_url: 'https://${{ env.TRAEFIK_HOSTNAME }}',
+              description: 'Feature environment deployed successfully',
+              auto_inactive: false
+            });
+
+      - name: Create Deployment Status
+        uses: actions/github-script@v7
+        if: ${{ failure() }}
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const { repo, owner } = context.repo;
+
+            // Create a deployment
+            const deployment = await github.rest.repos.createDeployment({
+              owner,
+              repo,
+              ref: context.ref,
+              environment: '${{ env.COMPOSE_PROJECT_NAME }}',
+              auto_merge: false,
+              required_contexts: []
+            });
+
+            // Set the deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner,
+              repo,
+              deployment_id: deployment.data.id,
+              state: 'failed',
+              description: 'Feature environment deployed failed',
+              auto_inactive: true
+            });
+
+      - name: Delete old workflow runs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflowId = 'feature.yml';
+            const { owner, repo } = context.repo;
+            const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: workflowId
+            });
+            const runsToKeep = new Set([context.runId, ...workflow_runs
+              .sort((a, b) => b.id - a.id)
+              .slice(0, 4)
+              .map(run => run.id)
+            ]);
+            for (const { id } of workflow_runs) {
+              if (!runsToKeep.has(id)) {
+                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id })
+                  .then(() => console.log(`Deleted run ${id}`))
+                  .catch(error => console.error(`Failed to delete run ${id}: ${error.message}`));
+              }
+            }
 
       - name: Workflow Ended - Teams Notification Message
         uses: Graffino/Graffino-Teams-Notification@v2

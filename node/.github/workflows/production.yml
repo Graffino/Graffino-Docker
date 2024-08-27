@@ -1,4 +1,4 @@
-name: Staging
+name: Production
 run-name: '${{ github.repository }} -> production by ${{ github.actor }}'
 
 on:
@@ -15,13 +15,14 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: your_project_name
+      DCR_REPO: migronet_client
       DCR_TAG: latest
       ENVIRONMENT: production
       VERSION_TAG: v1.0.0
       VERSION_NO: 1.0.0
       VERSION_MAJOR: 1
       VERSION_MINOR: 0
+      TRAEFIK_HOSTNAME: ''
 
     strategy:
       matrix:
@@ -33,6 +34,10 @@ jobs:
       packages: write
       attestations: write
       id-token: write
+      issues: write
+      pull-requests: write
+      deployments: write
+      actions: write
 
     steps:
       - name: Workflow Start - Teams Notification
@@ -45,7 +50,7 @@ jobs:
           timezone: Europe/Bucharest
 
       - name: Checkout
-        id: checkout
+        id: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -55,7 +60,7 @@ jobs:
         uses: nightstory/replace-env@v2
         id: Create-Env
         env:
-          COMPOSE_PROJECT_NAME: '${{ secrets.COMPOSE_PROJECT_NAME }}'
+          COMPOSE_PROJECT_NAME: '${{ vars.COMPOSE_PROJECT_NAME }}'
           DCR: '${{ env.DCR }}'
           DCR_ORG: '${{ env.DCR_ORG }}'
           DCR_REPO: '${{ env.DCR_REPO }}'
@@ -63,8 +68,8 @@ jobs:
           VITE_AZURE_APP_CLIENT_ID: '${{ secrets.VITE_AZURE_APP_CLIENT_ID }}'
           VITE_AZURE_APP_TENTANT_ID: '${{ secrets.VITE_AZURE_APP_TENTANT_ID }}'
           VITE_APP_API_BASE_URL: '${{ secrets.VITE_APP_API_BASE_URL }}'
-          TRAEFIK_HOSTNAME: '${{ secrets.TRAEFIK_HOSTNAME }}'
-          TRAEFIK_RESOLVER: '${{ secrets.TRAEFIK_RESOLVER }}'
+          TRAEFIK_HOSTNAME: '${{ vars.TRAEFIK_HOSTNAME }}'
+          TRAEFIK_RESOLVER: '${{ vars.TRAEFIK_RESOLVER }}'
           GH_PACKAGES_TOKEN: '${{ secrets.GH_PACKAGES_TOKEN }}'
           GH_PACKAGES_USERNAME: '${{ secrets.GH_PACKAGES_USERNAME }}'
         with:
@@ -82,7 +87,7 @@ jobs:
         uses: ahmadnassri/action-dotenv@v1
 
       - name: Get version
-        id: get_version
+        id: Get-Version
         run: |
           VERSION_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "v1.0.0")
           echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
@@ -101,8 +106,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: '${{ env.DCR }}'
-          username: '${{ github.actor }}'
-          password: '${{ github.token }}'
+          username: '${{ secrets.GH_PACKAGES_USERNAME }}'
+          password: '${{ secrets.DOCKERHUB_TOKEN }}'
 
       - name: Build and push NodeJS image
         uses: docker/build-push-action@v6
@@ -111,9 +116,9 @@ jobs:
           context: .
           build-args: |
             ENVIRONMENT=${{ env.ENVIRONMENT }}
-            TRAEFIK_HOSTNAME=${{ secrets.TRAEFIK_HOSTNAME }}
+            TRAEFIK_HOSTNAME=${{ vars.TRAEFIK_HOSTNAME }}
             GH_PACKAGES_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
-            GH_PACKAGES_USERNAME=${{ secrets.GH_PACKAGES_USERNAME }}
+            GH_PACKAGES_USERNAME=${{ secrets.GH_PACKAGES_TOKEN }}
           file: .docker/node/Dockerfile.production
           push: true
           tags: |
@@ -121,7 +126,7 @@ jobs:
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-node:${{ env.VERSION_NO }}
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-node:${{ env.VERSION_MAJOR }}
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-node:${{ env.VERSION_MAJOR }}.${{ env.VERSION_MINOR }}
-          cache-from: >
+          cache-from: >-
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-node:${{ env.DCR_TAG }}
           cache-to: type=inline
 
@@ -136,14 +141,10 @@ jobs:
           push: true
           tags: |
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
-
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.VERSION_NO }}
-
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.VERSION_MAJOR }}
-
             ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.VERSION_MAJOR }}.${{ env.VERSION_MINOR }}
-
-          cache-from: >
+          cache-from: >-
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
           cache-to: type=inline
 
@@ -152,36 +153,59 @@ jobs:
         with:
           keep: 3
           names: |
-            ${{ env.DCR_REPO }}-node
-            ${{ env.DCR_REPO }}-nginx
+            ${{ env.DCR_REPO }}-node:${{ env.DCR_TAG }}
+            ${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
 
       - name: Deploy
-        id: Deploy-To-Production
         uses: up9cloud/action-rsync@v1
+        id: Deploy-To-Production
         if: success()
         env:
           HOST: ${{ secrets.DEPLOY_HOSTNAME }}
           USER: ${{ secrets.DEPLOY_USERNAME }}
           KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_ARGS: ' -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+          SSH_ARGS: '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
 
           SOURCE: ./
-          TARGET: ~/docker/${{ secrets.COMPOSE_PROJECT_NAME }}/
+          TARGET: ~/docker/${{ vars.COMPOSE_PROJECT_NAME }}/
 
           VERBOSE: true
-          ARGS: "-carEzhvP --delete-before --exclude-from='.rsync-excludes-${{ env.ENVIRONMENT }}'"
+          ARGS: -carEzhvP --delete-before --exclude-from='.rsync-excludes-${{ env.ENVIRONMENT }}'
 
           PRE_SCRIPT: |
             echo "Pre script start at: " $(date -u)
-            mkdir -p ~/docker/${{ secrets.COMPOSE_PROJECT_NAME }}
+            mkdir -p ~/docker/${{ vars.COMPOSE_PROJECT_NAME }}
             echo "Pre script stop at: " $(date -u)
 
           POST_SCRIPT: |
             echo "Post script start at: " $(date -u)
-            cd ~/docker/${{ secrets.COMPOSE_PROJECT_NAME }}/
+            cd ~/docker/${{ vars.COMPOSE_PROJECT_NAME }}/
             ./.docker/setup-env.sh
             make update
-            echo "Post script stopped start at: " $(date -u)
+            echo "Post stopped start at: " $(date -u)
+
+      - name: Delete old workflow runs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflowId = 'production.yml';
+            const { owner, repo } = context.repo;
+            const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: workflowId
+            });
+            const runsToKeep = new Set([context.runId, ...workflow_runs
+              .sort((a, b) => b.id - a.id)
+              .slice(0, 4)
+              .map(run => run.id)
+            ]);
+            for (const { id } of workflow_runs) {
+              if (!runsToKeep.has(id)) {
+                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id })
+                  .then(() => console.log(`Deleted run ${id}`))
+                  .catch(error => console.error(`Failed to delete run ${id}: ${error.message}`));
+              }
+            }
 
       - name: Workflow Ended - Teams Notification Message
         uses: Graffino/Graffino-Teams-Notification@v2
@@ -191,4 +215,4 @@ jobs:
           ms-teams-webhook-uri: '${{ secrets.TEAMS_WEBHOOK_UPDATES }}'
           job: '${{ toJson(job) }}'
           timezone: Europe/Bucharest
-          notification-summary: '${{ github.repository }} -> staging by ${{ github.actor }} finished: ${{ job.status }}'
+          notification-summary: '${{ github.repository }} -> production by ${{ github.actor }} finished. Deployment URL: ${{ vars.TRAEFIK_HOSTNAME }}. Summary: ${{ job.status }}'

@@ -21,8 +21,8 @@ LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.revision=${REVISION}
 LABEL org.opencontainers.image.title="Nginx Image"
 LABEL org.opencontainers.image.vendor="Graffino Software <team@graffino.com>"
-LABEL org.opencontainers.image.description="Project Name Client - Nginx Docker image"
-LABEL org.opencontainers.image.source="https://github.com/Graffino/Project-Name"
+LABEL org.opencontainers.image.description="MigroNet Client - Nginx Docker image"
+LABEL org.opencontainers.image.source="https://github.com/Graffino/MigroNet-Client"
 
 # Set local arguments
 ARG USERNAME

@@ -22,8 +22,8 @@ LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.revision=${REVISION}
 LABEL org.opencontainers.image.title="PHP-FPM Image"
 LABEL org.opencontainers.image.vendor="Graffino Software <team@graffino.com>"
-LABEL org.opencontainers.image.description="Project Name - PHP-FPM Docker image"
-LABEL org.opencontainers.image.source="https://github.com/Graffino/Project-Name"
+LABEL org.opencontainers.image.description="MigroNet Backend - PHP-FPM Docker image"
+LABEL org.opencontainers.image.source="https://github.com/Graffino/MigroNet-API"
 
 # Set local arguments
 ARG USERNAME

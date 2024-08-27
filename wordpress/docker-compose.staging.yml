@@ -1,20 +1,27 @@
 services:
+  # PHP-FPM
   php-fpm:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
     image: ${DCR}/${DCR_ORG}/${DCR_REPO}-php-fpm:${DCR_TAG}
+    tty: true
     environment:
-      - ENVIRONMENT=${ENVIRONMENT}
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/php/Dockerfile.production
       args:
-        PHP_EXTENSIONS: ${PHP_EXTENSIONS}
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        PHP_EXTENSIONS: ${PHP_EXTENSIONS}
     volumes:
       - app:/var/www:rw
       - ./.env:/var/www/.env:ro
       - ./wordpress/uploads:/var/www/wordpress/uploads:rw
+      - tmp:/tmp:rw
     networks:
       - servers
       - proxy
@@ -36,21 +43,27 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
-
+  # Nginx
   nginx:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-nginx
     image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/nginx/Dockerfile
       args:
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
     volumes:
       - app:/var/www:rw
+      - ./.env:/var/www/.env:ro
       - ./wordpress/uploads:/var/www/wordpress/uploads:rw
-    ports:
-      - 8080:80
     networks:
       - servers
       - proxy
@@ -66,16 +79,29 @@ services:
         condition: service_healthy
       clamav:
         condition: service_started
-
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${TRAEFIK_HOSTNAME}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=${TRAEFIK_RESOLVER}
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.domains[0].main=${TRAEFIK_HOSTNAME}
+  # MariaDB
   mariadb:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-mariadb
     image: ${DCR}/${DCR_ORG}/${DCR_REPO}-mariadb:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/mariadb/Dockerfile
       args:
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
         DB_DATABASE: ${DB_DATABASE}
         DB_USERNAME: ${DB_USERNAME}
         DB_PASSWORD: ${DB_PASSWORD}
@@ -84,21 +110,31 @@ services:
     networks:
       - servers
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-p${DB_PASSWORD}']
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-u${DB_USERNAME}', '-p${DB_PASSWORD}']
       interval: 30s
       timeout: 5s
       retries: 3
-
+  # ClamAV A
   clamav:
+    restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-clamav
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-clamav:${DCR_TAG}
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-clamav:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/clamav/Dockerfile
       args:
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
     volumes:
       - clamav:/var/lib/clamav:rw
+      - tmp:/tmp:rw
     networks:
       - servers
       - proxy
@@ -108,14 +144,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 1m
-
+# Networks
 networks:
   servers:
     driver: bridge
   proxy:
     external: true
-
+# Volumes
 volumes:
   mariadb:
   app:
   clamav:
+  tmp:

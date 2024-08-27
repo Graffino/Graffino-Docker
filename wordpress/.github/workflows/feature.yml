@@ -31,7 +31,7 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: migronet_client
+      DCR_REPO: annotext
       DCR_TAG: ''
       COMPOSE_PROJECT_NAME: ''
 
@@ -136,11 +136,12 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: migronet_client
+      DCR_REPO: annotext
       DCR_TAG: ''
       COMPOSE_PROJECT_NAME: ''
       TRAEFIK_HOSTNAME: ''
       ENVIRONMENT: staging
+      PHP_EXTENSIONS: ''
 
     strategy:
       matrix:
@@ -188,15 +189,16 @@ jobs:
         uses: nightstory/replace-env@v2
         id: Create-Env
         env:
-          COMPOSE_PROJECT_NAME: '${{ vars.COMPOSE_PROJECT_NAME }}'
+          COMPOSE_PROJECT_NAME: '${{ env.COMPOSE_PROJECT_NAME }}'
           DCR: '${{ env.DCR }}'
           DCR_ORG: '${{ env.DCR_ORG }}'
           DCR_REPO: '${{ env.DCR_REPO }}'
           DCR_TAG: '${{ env.DCR_TAG }}'
-          VITE_AZURE_APP_CLIENT_ID: '${{ secrets.VITE_AZURE_APP_CLIENT_ID }}'
-          VITE_AZURE_APP_TENTANT_ID: '${{ secrets.VITE_AZURE_APP_TENTANT_ID }}'
-          VITE_APP_API_BASE_URL: '${{ secrets.VITE_APP_API_BASE_URL }}'
-          TRAEFIK_HOSTNAME: '${{ vars.TRAEFIK_HOSTNAME }}'
+          DB_HOSTNAME: '${{ secrets.DB_HOSTNAME }}'
+          DB_DATABASE: '${{ secrets.DB_DATABASE }}'
+          DB_USERNAME: '${{ secrets.DB_USERNAME }}'
+          DB_PASSWORD: '${{ secrets.DB_PASSWORD }}'
+          TRAEFIK_HOSTNAME: '${{ env.TRAEFIK_HOSTNAME }}'
           TRAEFIK_RESOLVER: '${{ vars.TRAEFIK_RESOLVER }}'
           GH_PACKAGES_TOKEN: '${{ secrets.GH_PACKAGES_TOKEN }}'
           GH_PACKAGES_USERNAME: '${{ secrets.GH_PACKAGES_USERNAME }}'
@@ -225,27 +227,30 @@ jobs:
           username: '${{ github.actor }}'
           password: '${{ github.token }}'
 
-      - name: Build and push NodeJS image
+      - name: Build and push PHP-FPM image
         uses: docker/build-push-action@v6
-        id: Build-And-Push-NodeJS
+        id: Build-And-Push-PHP-FPM
+        if: success()
         with:
           context: .
           build-args: |
             ENVIRONMENT=${{ env.ENVIRONMENT }}
-            TRAEFIK_HOSTNAME=${{ vars.TRAEFIK_HOSTNAME }}
+            PHP_EXTENSIONS=${{ env.PHP_EXTENSIONS }}
+            TRAEFIK_HOSTNAME=${{ env.TRAEFIK_HOSTNAME }}
             GH_PACKAGES_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
             GH_PACKAGES_USERNAME=${{ secrets.GH_PACKAGES_USERNAME }}
-          file: .docker/node/Dockerfile.production
+          file: .docker/php/Dockerfile.production
           push: true
           tags: |
-            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-node:${{ env.DCR_TAG }}
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
           cache-from: >-
-            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-node:${{ env.DCR_TAG }}
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
           cache-to: type=inline
 
       - name: Build and push Nginx image
-        id: Build-And-Push-Nginx
         uses: docker/build-push-action@v6
+        id: Build-And-Push-Nginx
+        if: success()
         with:
           context: .
           build-args: |
@@ -258,6 +263,41 @@ jobs:
             type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
           cache-to: type=inline
 
+      - name: Build and push MariaDB image
+        uses: docker/build-push-action@v6
+        if: success()
+        id: Build-And-Push-MariaDB
+        with:
+          context: .
+          build-args: |
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            DB_DATABASE=${{ secrets.DB_DATABASE }}
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          file: .docker/mariadb/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
+          cache-from: >-
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push ClamAV image
+        uses: docker/build-push-action@v6
+        id: Build-And-Push-ClamAV
+        if: success()
+        with:
+          context: .
+          build-args: |
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+          file: .docker/clamav/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-clamav:${{ env.DCR_TAG }}
+          cache-from: >
+            type=registry,ref=${{ env.DCR }}/${{ env.DCR_ORG }}/${{ env.DCR_REPO }}-clamav:${{ env.DCR_TAG }}
+          cache-to: type=inline
+
       - name: Clean up old packages
         uses: WPMedia/delete-github-package-versions@v0.4.10
         id: Cleanup-Old-Packages
@@ -265,8 +305,10 @@ jobs:
         with:
           keep: 1
           names: |
-            ${{ env.DCR_REPO }}-node:${{ env.DCR_TAG }}
+            ${{ env.DCR_REPO }}-php-fpm:${{ env.DCR_TAG }}
             ${{ env.DCR_REPO }}-nginx:${{ env.DCR_TAG }}
+            ${{ env.DCR_REPO }}-mariadb:${{ env.DCR_TAG }}
+            ${{ env.DCR_REPO }}-clamav:${{ env.DCR_TAG }}
 
       - name: Deploy
         id: Deploy-To-Staging
