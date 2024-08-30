@@ -2,7 +2,7 @@ services:
   node:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-node
-    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-node:latest
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-node:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
@@ -32,7 +32,7 @@ services:
   nginx:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-nginx
-    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:latest
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}

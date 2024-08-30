@@ -48,7 +48,7 @@ services:
   redis:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-redis
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-redis:${DCR_TAG}
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-redis:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
@@ -76,7 +76,7 @@ services:
   nginx:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-nginx
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-nginx:${DCR_TAG}
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
@@ -115,7 +115,7 @@ services:
   mariadb:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-mariadb
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-mariadb:${DCR_TAG}
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-mariadb:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}

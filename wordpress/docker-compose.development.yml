@@ -1,9 +1,8 @@
 services:
-  # PHP-FPM
   php-fpm:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-php-fpm-development:latest
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-php-fpm:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
@@ -37,11 +36,11 @@ services:
         condition: service_healthy
       clamav:
         condition: service_started
-  # Nginx
+
   nginx:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-nginx
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-nginx:latest
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
@@ -77,7 +76,7 @@ services:
   mariadb:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-mariadb
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-mariadb:latest
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-mariadb:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
@@ -108,7 +107,7 @@ services:
   clamav:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-clamav
-    image: ghcr.io/graffino/${COMPOSE_PROJECT_NAME}-clamav:latest
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-clamav:${DCR_TAG}
     tty: true
     environment:
       USER_ID: ${USER_ID}
