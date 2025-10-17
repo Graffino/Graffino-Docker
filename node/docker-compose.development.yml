@@ -17,6 +17,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - .:/var/www:rw
       - node_modules:/var/www/node_modules:rw
@@ -46,6 +48,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - .:/var/www:rw
     networks:

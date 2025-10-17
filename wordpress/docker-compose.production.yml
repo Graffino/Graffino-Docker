@@ -17,6 +17,8 @@ services:
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
         PHP_EXTENSIONS: ${PHP_EXTENSIONS}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - app:/var/www:rw
       - ./.env:/var/www/.env:ro
@@ -62,6 +64,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - app:/var/www:rw
       - ./.env:/var/www/.env:ro
@@ -102,6 +106,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
         DB_DATABASE: ${DB_DATABASE}
         DB_USERNAME: ${DB_USERNAME}
         DB_PASSWORD: ${DB_PASSWORD}
@@ -153,6 +159,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - clamav:/var/lib/clamav:rw
       - tmp:/tmp:rw

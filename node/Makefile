@@ -4,6 +4,10 @@
 -include .env
 export
 
+# Build metadata
+BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+REVISION := $(shell git rev-parse --short HEAD)
+
 # Ask for environment if not defined
 ifndef ENVIRONMENT
 export ENVIRONMENT := $(shell read -p "Enter environment (development|staging|production): " ENVIRONMENT; echo $$ENVIRONMENT)
@@ -114,8 +118,8 @@ build:
 	@$(MAKE) login
 	@docker buildx build \
 		--platform linux/arm64 \
-		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
-		--build-arg REVISION=$(shell git rev-parse --short HEAD) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg REVISION=$(REVISION) \
 		--build-arg USER_ID=$(USER_ID) \
 		--build-arg GROUP_ID=$(GROUP_ID) \
 		--build-arg ENVIRONMENT=$(ENVIRONMENT) \
@@ -136,8 +140,8 @@ build:
 		.
 	@docker buildx build \
 		--platform linux/arm64 \
-		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
-		--build-arg REVISION=$(shell git rev-parse --short HEAD) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg REVISION=$(REVISION) \
 		--build-arg USER_ID=$(USER_ID) \
 		--build-arg GROUP_ID=$(GROUP_ID) \
 		--build-arg ENVIRONMENT=$(ENVIRONMENT) \

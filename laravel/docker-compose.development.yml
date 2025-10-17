@@ -17,6 +17,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
         PHP_EXTENSIONS: ${PHP_EXTENSIONS}
     volumes:
       - ./:/var/www:rw
@@ -63,6 +65,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - redis:/data:rw
     networks:
@@ -91,6 +95,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - ./:/var/www:rw
     networks:
@@ -128,6 +134,8 @@ services:
         USER_ID: ${USER_ID}
         GROUP_ID: ${GROUP_ID}
         ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
         DB_DATABASE: ${DB_DATABASE}
         DB_USERNAME: ${DB_USERNAME}
         DB_PASSWORD: ${DB_PASSWORD}
