@@ -1,0 +1,69 @@
+# Exclude the following files and directories
+
+# Git and version control
+.git
+.github
+.gitattributes
+.gitignore
+
+# Rsync-related files
+.rsync-excludes-production
+.rsync-excludes-staging
+
+# IDE and editor configurations
+.vscode
+.editorconfig
+
+# Docker-related files (retain these)
+docker-compose.development.yml
+docker-compose.staging.yml
+.hadolint.yaml
+.dockerignore
+
+# Node.js and JavaScript dependencies
+node_modules
+postcss.config.js
+vite.config.js
+package.json
+yarn.lock
+
+# PHP and Composer files
+composer.json
+composer.lock
+
+# Environment files
+.env.staging
+.env.development
+
+# Other project-specific files
+auth-example.json
+LICENSE*
+README*
+artisan
+
+# Configuration and project-specific settings
+.browserlistrc
+.eslintignore
+.eslintrc
+.htmlhintrc
+.jsconfig.json
+.prettierrc
+.shellcheckrc
+.stylelintignore
+.stylelintrc
+
+# Log and XML files
+*.xml
+*.log
+
+# Specific project directories (retain these)
+/app
+/bootstrap
+/config
+/database
+/resources
+/routes
+/tests
+/bin
+/documentation
+/src

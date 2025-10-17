@@ -2,7 +2,7 @@ services:
     php-fpm:
         restart: unless-stopped
         container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
-        image: wkdelsw/annotext_oa_fe:php-fpm-production
+        image: wkdelsw/Project-Name_oa_fe:php-fpm-production
         build:
             context: .
             dockerfile: .docker/php/Dockerfile
@@ -38,7 +38,7 @@ services:
     nginx:
         restart: unless-stopped
         container_name: ${COMPOSE_PROJECT_NAME}-nginx
-        image: wkdelsw/annotext_oa_fe:nginx-production
+        image: wkdelsw/Project-Name_oa_fe:nginx-production
         build:
             context: .
             dockerfile: .docker/nginx/Dockerfile
@@ -71,7 +71,7 @@ services:
     mariadb:
         restart: unless-stopped
         container_name: ${COMPOSE_PROJECT_NAME}-mariadb
-        image: wkdelsw/annotext_oa_fe:mariadb-production
+        image: wkdelsw/Project-Name_oa_fe:mariadb-production
         build:
             context: .
             dockerfile: .docker/mariadb/Dockerfile
@@ -94,7 +94,7 @@ services:
 
     clamav:
         container_name: ${COMPOSE_PROJECT_NAME}-clamav
-        image: wkdelsw/annotext_oa_fe:clamav-production
+        image: wkdelsw/Project-Name_oa_fe:clamav-production
         build:
             context: .
             dockerfile: .docker/clamav/Dockerfile

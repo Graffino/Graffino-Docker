@@ -4,6 +4,10 @@
 -include .env
 export
 
+# Build metadata
+BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+REVISION := $(shell git rev-parse --short HEAD)
+
 # Docker containers
 CONTAINER_NGINX=docker compose exec -T nginx sh -c
 CONTAINER_PHP=docker compose exec -T php-fpm sh -c
@@ -71,8 +75,8 @@ setup:
 .PHONY: initialize-db
 initialize-db:
 	@echo "Initializing default database..."
-	@docker cp annotext-php-fpm:/var/www/wordpress/migrations/latest.sql.zip latest.sql.zip
-	@docker cp latest.sql.zip annotext-mariadb:/tmp/latest.sql.zip
+	@docker cp Project-Name-php-fpm:/var/www/wordpress/migrations/latest.sql.zip latest.sql.zip
+	@docker cp latest.sql.zip Project-Name-mariadb:/tmp/latest.sql.zip
 	@$(CONTAINER_MARIADB) 'unzip -p /tmp/latest.sql.zip | mysql -P $(DB_PORT) -u $(DB_USERNAME) -p$(DB_PASSWORD) $(DB_DATABASE)'
 	@rm latest.sql.zip
 	@echo "Database import completed."

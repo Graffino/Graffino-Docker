@@ -1,18 +1,29 @@
 services:
+  # PHP-FPM
   php-fpm:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-php-fpm
-    image: wkdelsw/annotext_oa_fe:php-fpm-staging
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-php-fpm:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
-      dockerfile: .docker/php/Dockerfile
+      dockerfile: .docker/php/Dockerfile.production
       args:
-        PHP_EXTENSIONS: ${PHP_EXTENSIONS}
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
+        PHP_EXTENSIONS: ${PHP_EXTENSIONS}
     volumes:
-      - ./:/var/www:rw
-      - node_modules:/var/www/node_modules:rw
-      - composer:/var/www/composer:rw
+      - app:/var/www:rw
+      - ./.env:/var/www/.env:ro
+      - ./wordpress/uploads:/var/www/wordpress/uploads:rw
+      - tmp:/tmp:rw
     networks:
       - servers
       - proxy
@@ -34,18 +45,29 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
-
+  # Nginx
   nginx:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-nginx
-    image: wkdelsw/annotext_oa_fe:nginx-staging
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/nginx/Dockerfile
       args:
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
-      - ./:/var/www:rw
+      - app:/var/www:rw
+      - ./.env:/var/www/.env:ro
+      - ./wordpress/uploads:/var/www/wordpress/uploads:rw
     networks:
       - servers
       - proxy
@@ -64,19 +86,28 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${TRAEFIK_HOSTNAME}`)
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.tls=true
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.tls.domains[0].main=${TRAEFIK_HOSTNAME}
-      - traefik.http.services.${COMPOSE_PROJECT_NAME}-secure.loadbalancer.server.port=80
-
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=${TRAEFIK_RESOLVER}
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.domains[0].main=${TRAEFIK_HOSTNAME}
+  # MariaDB
   mariadb:
     restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-mariadb
-    image: wkdelsw/annotext_oa_fe:mariadb-staging
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-mariadb:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/mariadb/Dockerfile
       args:
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
         DB_DATABASE: ${DB_DATABASE}
         DB_USERNAME: ${DB_USERNAME}
         DB_PASSWORD: ${DB_PASSWORD}
@@ -84,24 +115,34 @@ services:
       - mariadb:/var/lib/mysql:rw
     networks:
       - servers
-    ports:
-      - '${DB_FORWARD_PORT:-3306}:3306'
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-p${DB_PASSWORD}']
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-u${DB_USERNAME}', '-p${DB_PASSWORD}']
       interval: 30s
       timeout: 5s
       retries: 3
-
+  # ClamAV A
   clamav:
+    restart: unless-stopped
     container_name: ${COMPOSE_PROJECT_NAME}-clamav
-    image: wkdelsw/annotext_oa_fe:clamav-staging
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-clamav:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
     build:
       context: .
       dockerfile: .docker/clamav/Dockerfile
       args:
         USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
     volumes:
       - clamav:/var/lib/clamav:rw
+      - tmp:/tmp:rw
     networks:
       - servers
       - proxy
@@ -111,15 +152,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 1m
-
+# Networks
 networks:
   servers:
     driver: bridge
   proxy:
     external: true
-
+# Volumes
 volumes:
   mariadb:
-  node_modules:
-  composer:
+  app:
   clamav:
+  tmp:

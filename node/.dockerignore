@@ -1,0 +1,16 @@
+# Ignore git related files and folders
+.git
+.gitignore
+
+# Ignore development and IDE files
+.vscode/
+.idea/
+.DS_Store
+
+# Ignore test directories
+__tests__/
+tests/
+test/
+
+# Vite
+vite-env.d.ts

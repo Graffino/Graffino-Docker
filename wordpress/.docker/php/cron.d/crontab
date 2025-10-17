@@ -1,0 +1,1 @@
+* * * * * /usr/local/bin/wp --path=/var/www/dist-wp/ cron event run --due-now >> /var/log/cron/cron.log 2 >& 1"

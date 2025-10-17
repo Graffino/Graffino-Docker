@@ -1,0 +1,81 @@
+services:
+  node:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-node
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-node:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
+      VITE_APP_URL: ${VITE_APP_URL}
+      VITE_APP_API_BASE_URL: ${VITE_APP_API_BASE_URL}
+    build:
+      context: .
+      dockerfile: .docker/node/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
+    volumes:
+      - .:/var/www:rw
+      - node_modules:/var/www/node_modules:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --fail http://localhost:3000 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  nginx:
+    restart: unless-stopped
+    container_name: ${COMPOSE_PROJECT_NAME}-nginx
+    image: ${DCR}/${DCR_ORG}/${DCR_REPO}-nginx:${DCR_TAG}
+    tty: true
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}
+      ENVIRONMENT: ${ENVIRONMENT}
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        ENVIRONMENT: ${ENVIRONMENT}
+        BUILD_DATE: ${BUILD_DATE}
+        REVISION: ${REVISION}
+    volumes:
+      - .:/var/www:rw
+    networks:
+      - servers
+      - proxy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --fail http://127.0.0.1:80 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      node:
+        condition: service_started
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${TRAEFIK_HOSTNAME}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=${TRAEFIK_RESOLVER}
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.domains[0].main=${TRAEFIK_HOSTNAME}
+
+networks:
+  servers:
+    driver: bridge
+  proxy:
+    external: true
+
+volumes:
+  node_modules:
