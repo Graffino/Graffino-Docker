@@ -31,7 +31,7 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: migronet_client
+      DCR_REPO: graffino_docker
       DCR_TAG: ''
       COMPOSE_PROJECT_NAME: ''
 
@@ -136,7 +136,7 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: migronet_client
+      DCR_REPO: graffino_docker
       DCR_TAG: ''
       COMPOSE_PROJECT_NAME: ''
       TRAEFIK_HOSTNAME: ''

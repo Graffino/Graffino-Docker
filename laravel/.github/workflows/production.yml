@@ -15,7 +15,7 @@ jobs:
     env:
       DCR: ghcr.io
       DCR_ORG: graffino
-      DCR_REPO: migronet_api
+      DCR_REPO: graffino_docker
       DCR_TAG: latest
       ENVIRONMENT: production
       PHP_EXTENSIONS: ""

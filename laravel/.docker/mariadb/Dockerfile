@@ -29,8 +29,8 @@ LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.revision=${REVISION}
 LABEL org.opencontainers.image.title="MariaDB Image"
 LABEL org.opencontainers.image.vendor="Graffino Software <team@graffino.com>"
-LABEL org.opencontainers.image.description="MigroNet Backend - MariaDB Docker image"
-LABEL org.opencontainers.image.source="https://github.com/Graffino/MigroNet-API"
+LABEL org.opencontainers.image.description="Graffino Docker - MariaDB Docker image"
+LABEL org.opencontainers.image.source="https://github.com/Graffino/Graffino-Docker"
 
 
 # Set local arguments
