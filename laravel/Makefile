@@ -4,10 +4,6 @@
 -include .env
 export
 
-# Build metadata
-BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-REVISION := $(shell git rev-parse --short HEAD)
-
 # Ask for environment if not defined
 ifndef ENVIRONMENT
 export ENVIRONMENT := $(shell read -p "Enter environment (development|staging|production): " ENVIRONMENT; echo $$ENVIRONMENT)
@@ -114,6 +110,10 @@ setup:
 
 .PHONY: build
 build:
+	# Build metadata
+	@BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+	@REVISION=$(shell git rev-parse --short HEAD)
+
 	@echo "\n   ℹ️  Building and pushing development containers...\n";
 	@$(MAKE) check-env
 	@$(MAKE) login

@@ -4,10 +4,6 @@
 -include .env
 export
 
-# Build metadata
-BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-REVISION := $(shell git rev-parse --short HEAD)
-
 # Docker containers
 CONTAINER_NGINX=docker compose exec -T nginx sh -c
 CONTAINER_PHP=docker compose exec -T php-fpm sh -c
