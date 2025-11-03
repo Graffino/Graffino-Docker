@@ -63,7 +63,7 @@ COPY --from=node:20-alpine /usr/local/include /usr/local/include
 COPY --from=node:20-alpine /usr/local/bin /usr/local/bin
 
 # Add crontab file
-COPY ./.docker/php/cron.d/crontab /tmp/crontab
+COPY ./.docker/php/cron.d/crontab /etc/crontabs/${USERNAME}
 
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 RUN <<EOF
@@ -115,15 +115,16 @@ RUN <<EOF
   curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
   chmod +x /usr/local/bin/composer
   # Install Crontab
-  crontab /tmp/crontab
-  mkdir /var/log/cron
+  mkdir -p /var/log/cron /etc/crontabs/ /var/spool/cron/
   touch /var/log/cron/cron.log
   chown -R ${USER_ID}:${GROUP_ID} /var/log/cron/ /etc/crontabs/ /var/spool/cron/
   # Configure supervisor
   mkdir -p /etc/supervisor /var/run/supervisor/ /var/log/supervisor
+  touch /var/log/supervisor/supervisord.log
   chown -R ${USER_ID}:${GROUP_ID} /etc/supervisor /var/run/supervisor /var/log/supervisor
   # Create php folders set permissions
   mkdir -p /var/log/php-fpm/ /usr/local/var/php/sessions
+  touch /var/log/php-fpm/php-fpm.log
   chown -R ${USER_ID}:${GROUP_ID} /usr/local/var/php/sessions /usr/local/lib/php/extensions /usr/local/etc/php/ /var/log/php-fpm/
   chmod 755 /usr/local/lib/php/extensions/*
   # Create www folders & set permissions
