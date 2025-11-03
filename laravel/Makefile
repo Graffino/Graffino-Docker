@@ -345,7 +345,7 @@ rebuild-%:
 logs-%:
 	@echo "\n  ℹ️  Showing logs for $*.\n";
 	@$(MAKE) check-env
-	@docker logs ${COMPOSE_PROJECT_NAME}-$*
+	@docker logs -f --tail=200 ${COMPOSE_PROJECT_NAME}-$*
 
 .PHONY: ps
 ps:

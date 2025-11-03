@@ -141,10 +141,12 @@ RUN <<EOF
   chown -R ${USER_ID}:${GROUP_ID} /var/log/cron/ /etc/crontabs/ /var/spool/cron/
   # Configure supervisor
   mkdir -p /etc/supervisor/ /var/run/supervisor/ /var/log/supervisor
+  ln -s /dev/stdout /var/log/supervisor/supervisord.log
   chown -R ${USER_ID}:${GROUP_ID} /etc/supervisor /var/run/supervisor /var/log/supervisor
   # Create logs directory & set permissions
   mkdir -p /var/log/php-fpm/ /usr/local/var/php/sessions
   chown -R ${USER_ID}:${GROUP_ID} /var/log/php-fpm/
+  touch /var/log/php-fpm/php-fpm.log
   # Set PHP permissions
   chown -R ${USER_ID}:${GROUP_ID} /usr/local/var/php/sessions /usr/local/lib/php/extensions /usr/local/etc/php/
   chmod 755 /usr/local/lib/php/extensions/*
