@@ -119,7 +119,6 @@ RUN <<EOF
   addgroup ${USERNAME} tty
   # Install development dependencies & utilities
   apk --no-cache add --virtual .production-deps \
-    busybox \
     fcgi \
     supervisor \
     rsync \
@@ -135,8 +134,12 @@ RUN <<EOF
   # Install PHP extensions
   # shellcheck disable=SC2046
   install-php-extensions $(eval echo "${PHP_EXTENSIONS}")
-  # Install Crontab
-  mkdir -p /var/log/cron /etc/crontabs/ /var/spool/cron/
+  # Install Supercronic
+  curl -L -o /usr/local/bin/supercronic \
+    https://github.com/aptible/supercronic/releases/latest/download/supercronic-linux-amd64 \
+    && chmod +x /usr/local/bin/supercronic
+  rm -rf /etc/crontabs/root /etc/periodic
+  mkdir -p /var/log/cron /etc/crontabs /var/spool/cron
   touch /var/log/cron/cron.log
   chown -R ${USER_ID}:${GROUP_ID} /var/log/cron/ /etc/crontabs/ /var/spool/cron/
   # Configure supervisor
