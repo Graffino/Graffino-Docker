@@ -61,7 +61,7 @@ COPY --from=node:20-alpine /usr/local/include /usr/local/include
 COPY --from=node:20-alpine /usr/local/bin /usr/local/bin
 
 # Add crontab file
-COPY ./.docker/php/cron.d/crontab /tmp/crontab
+COPY ./.docker/php/cron.d/crontab /etc/crontabs/${USERNAME}
 
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 RUN <<EOF
@@ -119,8 +119,7 @@ RUN <<EOF
   https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
   chmod +x /usr/local/bin/wp
   # Install Crontab
-  crontab /tmp/crontab
-  mkdir /var/log/cron
+  mkdir -p /var/log/cron /etc/crontabs/ /var/spool/cron/
   touch /var/log/cron/cron.log
   chown -R ${USER_ID}:${GROUP_ID} /var/log/cron/ /etc/crontabs/ /var/spool/cron/
   # Configure supervisor

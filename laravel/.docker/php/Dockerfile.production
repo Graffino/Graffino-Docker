@@ -106,7 +106,7 @@ ENV PHP_MAX_EXECUTION_TIME=${PHP_MAX_EXECUTION_TIME:-30}
 ENV PHP_MAX_INPUT_TIME=${PHP_MAX_INPUT_TIME:-30}
 
 # Add crontab file
-COPY ./.docker/php/cron.d/crontab /tmp/crontab
+COPY ./.docker/php/cron.d/crontab /etc/crontabs/${USERNAME}
 
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 RUN <<EOF
@@ -136,8 +136,7 @@ RUN <<EOF
   # shellcheck disable=SC2046
   install-php-extensions $(eval echo "${PHP_EXTENSIONS}")
   # Install Crontab
-  crontab /tmp/crontab
-  mkdir /var/log/cron
+  mkdir -p /var/log/cron /etc/crontabs/ /var/spool/cron/
   touch /var/log/cron/cron.log
   chown -R ${USER_ID}:${GROUP_ID} /var/log/cron/ /etc/crontabs/ /var/spool/cron/
   # Configure supervisor
