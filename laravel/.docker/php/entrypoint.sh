@@ -91,6 +91,12 @@ fi
 if [ -f /var/www/artisan ] && [ -f /var/www/vendor/autoload.php ]; then
   cd /var/www
 
+  # Remove broken or wrong link safely
+  if [ -L /var/www/public/storage ] && [ ! -e /var/www/public/storage ]; then
+    echo "    ${GREEN}❎  Removing broken symlink: /var/www/public/storage${NC}"
+    rm -f /var/www/public/storage
+  fi
+
   if [ ! -L /var/www/public/storage ]; then
     echo -e "    ${GREEN}✅  Run artisan to Link storage folder...${NC}"
     php artisan storage:link
