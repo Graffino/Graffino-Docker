@@ -1,0 +1,41 @@
+# Laravel specific
+/public/build
+/public/hot
+/public/storage
+/public/css
+/public/js
+/storage/*.key
+/storage/app/public/*
+/storage/logs/*
+/storage/framework/
+
+# PHPUnit
+/.phpunit.cache
+.phpunit.result.cache
+
+# Node
+node_modules
+# NPM Lockfiles (we use yarn)
+package-lock.json
+
+# Composer
+/vendor
+auth.json
+
+# Env
+.env
+
+# Logs
+logs
+*.log
+
+# IDEs
+.idea
+.vscode
+!.vscode/extensions.json
+
+# Readme
+README.md
+
+# MacOS Junk
+.DS_Store

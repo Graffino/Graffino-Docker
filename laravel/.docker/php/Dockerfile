@@ -9,7 +9,7 @@ ARG BUILD_DATE
 ARG REVISION
 
 # Get PHP image
-FROM php:8.2-fpm-alpine3.19 AS main
+FROM php:8.4-fpm-alpine3.21 AS main
 
 ARG BUILD_DATE
 ARG REVISION
@@ -93,7 +93,6 @@ RUN <<EOF
     git \
     yarn \
     supervisor \
-    busybox \
     fcgi \
     tini \
     shadow \
@@ -114,8 +113,12 @@ RUN <<EOF
   # Install Composer
   curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
   chmod +x /usr/local/bin/composer
-  # Install Crontab
-  mkdir -p /var/log/cron /etc/crontabs/ /var/spool/cron/
+  # Install Supercronic
+  curl -L -o /usr/local/bin/supercronic \
+    https://github.com/aptible/supercronic/releases/latest/download/supercronic-linux-amd64 \
+    && chmod +x /usr/local/bin/supercronic
+  rm -rf /etc/crontabs/root /etc/periodic
+  mkdir -p /var/log/cron /etc/crontabs /var/spool/cron
   touch /var/log/cron/cron.log
   chown -R ${USER_ID}:${GROUP_ID} /var/log/cron/ /etc/crontabs/ /var/spool/cron/
   # Configure supervisor
