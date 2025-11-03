@@ -9,7 +9,7 @@ ARG BUILD_DATE
 ARG REVISION
 
 # Get PHP image
-FROM php:8.2-fpm-alpine3.19 AS main
+FROM php:8.4-fpm-alpine3.21 AS main
 
 ARG BUILD_DATE
 ARG REVISION
