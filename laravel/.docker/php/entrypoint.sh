@@ -87,7 +87,7 @@ if [ ! -d /var/www/storage/app/public ]; then
   chmod -R 755 /var/www/storage/app/public
 fi
 
-# Run artisan commands if the vendor directory and autoload.php exist
+# Run artisan commands
 if [ -f /var/www/artisan ] && [ -f /var/www/vendor/autoload.php ]; then
   cd /var/www
 
@@ -114,6 +114,8 @@ if [ -f /var/www/artisan ] && [ -f /var/www/vendor/autoload.php ]; then
     # Run optimize and storage:link if the symlink does not exist
     php artisan optimize:clear
     php artisan optimize
+    php artisan filament:optimize
+    php artisan permissions:sync
     ;;
   *)
     echo -e "    ℹ️  Environment is 'development'. Skipping migrations and cache rebuild..."
